@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Red or Blue</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #0a0a0a;
+      color: #e5e5e5;
+      font-family: 'Georgia', serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      max-width: 620px;
+      width: 100%;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Choice screen ── */
+    .timer-ring {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      margin-bottom: 2rem;
+    }
+
+    .timer-ring svg {
+      transform: rotate(-90deg);
+    }
+
+    .timer-ring .track {
+      fill: none;
+      stroke: #2a2a2a;
+      stroke-width: 6;
+    }
+
+    .timer-ring .progress {
+      fill: none;
+      stroke: #e5e5e5;
+      stroke-width: 6;
+      stroke-linecap: round;
+      stroke-dasharray: 283;
+      stroke-dashoffset: 0;
+      transition: stroke-dashoffset 1s linear, stroke 0.3s;
+    }
+
+    .timer-number {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.6rem;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      color: #e5e5e5;
+    }
+
+    .stakes {
+      font-size: 1.05rem;
+      line-height: 1.75;
+      color: #aaa;
+      margin-bottom: 2.5rem;
+      max-width: 500px;
+    }
+
+    .stakes strong {
+      color: #e5e5e5;
+    }
+
+    .prompt {
+      font-size: 1.3rem;
+      color: #888;
+      margin-bottom: 2rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .choices {
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    .btn {
+      width: 160px;
+      height: 160px;
+      border: none;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 1.2rem;
+      font-weight: bold;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.2s, box-shadow 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn:active { transform: scale(0.96); }
+
+    .btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-red {
+      background: #7f1d1d;
+      color: #fca5a5;
+      box-shadow: 0 0 30px #7f1d1d60;
+    }
+
+    .btn-red:hover:not(:disabled) {
+      background: #991b1b;
+      box-shadow: 0 0 50px #991b1b80;
+      transform: translateY(-2px);
+    }
+
+    .btn-blue {
+      background: #1e3a5f;
+      color: #93c5fd;
+      box-shadow: 0 0 30px #1e3a5f60;
+    }
+
+    .btn-blue:hover:not(:disabled) {
+      background: #1d4ed8;
+      box-shadow: 0 0 50px #1d4ed880;
+      transform: translateY(-2px);
+    }
+
+    .error-msg {
+      margin-top: 1rem;
+      font-size: 0.85rem;
+      color: #f87171;
+      font-family: 'Courier New', monospace;
+      min-height: 1.2em;
+    }
+
+    /* ── Voided screen ── */
+    .void-icon {
+      font-size: 3rem;
+      margin-bottom: 1.5rem;
+      opacity: 0.4;
+    }
+
+    .void-title {
+      font-size: 1.8rem;
+      color: #555;
+      margin-bottom: 1rem;
+    }
+
+    .void-sub {
+      font-size: 0.95rem;
+      color: #444;
+      font-family: 'Courier New', monospace;
+    }
+
+    /* ── Confirmation screen ── */
+    .lock-icon {
+      font-size: 3.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .confirm-title {
+      font-size: 2rem;
+      color: #e5e5e5;
+      margin-bottom: 0.75rem;
+    }
+
+    .confirm-sub {
+      font-size: 0.9rem;
+      color: #555;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- State 1: Choice -->
+  <div class="screen active" id="screen-choice">
+    <div class="timer-ring">
+      <svg width="100" height="100" viewBox="0 0 100 100">
+        <circle class="track" cx="50" cy="50" r="45"/>
+        <circle class="progress" id="timer-arc" cx="50" cy="50" r="45"/>
+      </svg>
+      <div class="timer-number" id="timer-display">30</div>
+    </div>
+
+    <p class="stakes">
+      A choice must be made.<br><br>
+      <strong>If 50% or more of all participants choose blue, everyone lives.</strong><br>
+      If fewer than 50% choose blue, only those who chose red will survive.<br><br>
+      You have 30 seconds. There is no abstention.
+    </p>
+
+    <p class="prompt">Choose</p>
+
+    <div class="choices">
+      <button class="btn btn-red" id="btn-red" onclick="submitVote('red')">Red</button>
+      <button class="btn btn-blue" id="btn-blue" onclick="submitVote('blue')">Blue</button>
+    </div>
+
+    <div class="error-msg" id="error-msg"></div>
+  </div>
+
+  <!-- State 2: Voided -->
+  <div class="screen" id="screen-void">
+    <div class="void-icon">◯</div>
+    <h2 class="void-title">Time's up.</h2>
+    <p class="void-sub">Your session has been voided.</p>
+  </div>
+
+  <!-- State 3: Confirmation -->
+  <div class="screen" id="screen-confirm">
+    <div class="lock-icon">◈</div>
+    <h2 class="confirm-title">Choice locked in.</h2>
+    <p class="confirm-sub">Your decision has been recorded.</p>
+  </div>
+
+  <script>
+    const TOTAL_SECONDS = 30;
+    const CIRCUMFERENCE = 2 * Math.PI * 45; // ~283
+
+    let secondsLeft = TOTAL_SECONDS;
+    let timerInterval = null;
+    let votingClosed = false;
+
+    function getSessionId() {
+      let id = sessionStorage.getItem('rb_session');
+      if (!id) {
+        id = crypto.randomUUID();
+        sessionStorage.setItem('rb_session', id);
+      }
+      return id;
+    }
+
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    function updateTimer(seconds) {
+      document.getElementById('timer-display').textContent = seconds;
+      const arc = document.getElementById('timer-arc');
+      const offset = CIRCUMFERENCE * (1 - seconds / TOTAL_SECONDS);
+      arc.style.strokeDashoffset = offset;
+      if (seconds <= 10) {
+        arc.style.stroke = '#f87171';
+        document.getElementById('timer-display').style.color = '#f87171';
+      }
+    }
+
+    function startTimer() {
+      timerInterval = setInterval(() => {
+        secondsLeft--;
+        updateTimer(secondsLeft);
+        if (secondsLeft <= 0) {
+          clearInterval(timerInterval);
+          if (!votingClosed) {
+            voidSession();
+          }
+        }
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+    }
+
+    function voidSession() {
+      votingClosed = true;
+      sessionStorage.setItem('rb_voided', 'true');
+      showScreen('screen-void');
+    }
+
+    async function submitVote(choice) {
+      if (votingClosed) return;
+      votingClosed = true;
+      stopTimer();
+
+      const sessionId = getSessionId();
+      document.getElementById('btn-red').disabled = true;
+      document.getElementById('btn-blue').disabled = true;
+      document.getElementById('error-msg').textContent = '';
+
+      try {
+        const res = await fetch('/vote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ choice, session_id: sessionId }),
+        });
+
+        if (res.ok || res.status === 409) {
+          sessionStorage.setItem('rb_voted', 'true');
+          showScreen('screen-confirm');
+        } else {
+          const data = await res.json().catch(() => ({}));
+          document.getElementById('error-msg').textContent =
+            data.error || 'Something went wrong. Please try again.';
+          document.getElementById('btn-red').disabled = false;
+          document.getElementById('btn-blue').disabled = false;
+          votingClosed = false;
+          startTimer();
+        }
+      } catch {
+        document.getElementById('error-msg').textContent =
+          'Network error. Please try again.';
+        document.getElementById('btn-red').disabled = false;
+        document.getElementById('btn-blue').disabled = false;
+        votingClosed = false;
+        startTimer();
+      }
+    }
+
+    // Boot
+    (function init() {
+      if (sessionStorage.getItem('rb_voted') === 'true') {
+        showScreen('screen-confirm');
+        return;
+      }
+      if (sessionStorage.getItem('rb_voided') === 'true') {
+        showScreen('screen-void');
+        return;
+      }
+      updateTimer(TOTAL_SECONDS);
+      startTimer();
+    })();
+  </script>
+</body>
+</html>
